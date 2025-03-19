@@ -1,6 +1,7 @@
 import { google } from "googleapis";
+import { NextRequest, NextResponse } from "next/server";
 
-export default async function handlerSheets(req, res) {
+export default async function handler(req: NextRequest, res: NextResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Only POST requests allowed" });
   }
@@ -10,7 +11,10 @@ export default async function handlerSheets(req, res) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: (process.env.GOOGLE_PRIVATE_KEY as string).replace(
+          /\\n/g,
+          "\n"
+        ),
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
