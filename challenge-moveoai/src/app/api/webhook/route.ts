@@ -6,7 +6,7 @@ interface WebhookPayload {
   range: string;
 }
 
-export default async function GET(req: NextApiRequest, res: NextApiResponse) {
+export default async function POST(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Only POST requests allowed" });
   }
