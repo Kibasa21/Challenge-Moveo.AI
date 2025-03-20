@@ -1,17 +1,16 @@
 import { google } from "googleapis";
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextResponse } from "next/server";
 
 interface WebhookPayload {
   sheetId: string;
   range: string;
 }
 
-export default async function POST(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Only POST requests allowed" });
-  }
-
+export async function GET(request: Request) {
   try {
+    // Parse the request body
+    const payload: WebhookPayload = await request.json();
+
     // Authenticate with Google Sheets API
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -23,13 +22,10 @@ export default async function POST(req: NextApiRequest, res: NextApiResponse) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Extract data from Moveo.ai webhook payload
-    const { sheetId, range } = req.body as WebhookPayload;
-
     // Fetch data from Google Sheets
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: range,
+      spreadsheetId: payload.sheetId,
+      range: payload.range,
     });
 
     // Handle null or undefined values
@@ -39,12 +35,15 @@ export default async function POST(req: NextApiRequest, res: NextApiResponse) {
     console.log("Data from Google Sheets:", data);
 
     // Send a response back to Moveo.ai
-    res.status(200).json({ success: true, data });
+    return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error) {
     console.error("Error fetching data from Google Sheets:", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
