@@ -1,28 +1,53 @@
-// app/api/webhook/route.ts
-import { NextResponse } from "next/server";
+import { google } from "googleapis";
+import { NextApiRequest, NextApiResponse } from "next";
 
-export async function POST(request: Request) {
+interface WebhookPayload {
+  sheetId: string;
+  range: string;
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Only POST requests allowed" });
+  }
+
   try {
-    // Verify the webhook token (if applicable)
-    const token = request.headers.get("x-verification-token");
-    if (token !== process.env.WEBHOOK_SECRET_TOKEN) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // Process the webhook payload
-    const payload = await request.json();
-    console.log("Webhook payload:", payload);
-
-    // Respond to Moveo.ai
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error("Error processing webhook:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+    // Authenticate with Google Sheets API
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       },
-      { status: 500 }
-    );
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Extract data from Moveo.ai webhook payload
+    const { sheetId, range } = req.body as WebhookPayload;
+
+    // Fetch data from Google Sheets
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: range,
+    });
+
+    // Handle null or undefined values
+    const data = response.data.values || [];
+
+    // Process the data (e.g., save to database, send response, etc.)
+    console.log("Data from Google Sheets:", data);
+
+    // Send a response back to Moveo.ai
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Error fetching data from Google Sheets:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 }
