@@ -6,7 +6,7 @@ interface WebhookPayload {
   range: string;
 }
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
     // Parse the request body
     const payload: WebhookPayload = await request.json();
