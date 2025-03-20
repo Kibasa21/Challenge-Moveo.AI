@@ -1,44 +1,29 @@
 import { google } from "googleapis";
-import { NextRequest, NextResponse } from "next/server";
+// app/api/webhook/route.ts
+import { NextResponse } from "next/server";
 
-export default async function handler(req: NextRequest, res: NextResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Only POST requests allowed" });
-  }
-
+export async function POST(request: Request) {
   try {
-    // Authenticate with Google Sheets API
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: (process.env.GOOGLE_PRIVATE_KEY as string).replace(
-          /\\n/g,
-          "\n"
-        ),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    // Verify the webhook token (if applicable)
+    const token = request.headers.get("x-verification-token");
+    if (token !== process.env.WEBHOOK_SECRET_TOKEN) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    const sheets = google.sheets({ version: "v4", auth });
+    // Process the webhook payload
+    const payload = await request.json();
+    console.log("Webhook payload:", payload);
 
-    // Extract data from Moveo.ai webhook payload
-    const { sheetId, range } = req.body;
-
-    // Fetch data from Google Sheets
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: range,
-    });
-
-    const data = response.data.values;
-
-    // Process the data (e.g., save to database, send response, etc.)
-    console.log("Data from Google Sheets:", data);
-
-    // Send a response back to Moveo.ai
-    res.status(200).json({ success: true, data });
+    // Respond to Moveo.ai
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching data from Google Sheets:", error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Error processing webhook:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
